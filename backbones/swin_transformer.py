@@ -21,16 +21,16 @@ class MLP(nn.Module):
         hidden_features = hidden_features or in_features
         self.fc1 = nn.Linear(in_features, hidden_features)
         self.act = act_layer()
+        self.drop1 = nn.Dropout(drop)
         self.fc2 = nn.Linear(hidden_features, out_features)
-        self.dropout1 = nn.Dropout(drop)
-        self.dropout2 = nn.Dropout(drop)
+        self.drop2 = nn.Dropout(drop)
 
     def forward(self, x):
         x = self.fc1(x)
         x = self.act(x)
-        x = self.dropout1(x)
+        x = self.drop1(x)
         x = self.fc2(x)
-        x = self.dropout2(x)
+        x = self.drop2(x)
         return x
 
 class PatchEmbed(nn.Module):
@@ -189,7 +189,8 @@ class SwinTransformerBlock(nn.Module):
             proj_drop=drop,
         )
 
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0. else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = MLP(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop) 
@@ -238,8 +239,8 @@ class SwinTransformerBlock(nn.Module):
         x = x.view(B, H * W, C)
 
         # FFN
-        x = shortcut + self.drop_path(x)
-        x = x + self.drop_path(self.mlp(self.norm2(x)))
+        x = shortcut + self.drop_path1(x)
+        x = x + self.drop_path2(self.mlp(self.norm2(x)))
 
         return x
 

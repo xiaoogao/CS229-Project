@@ -72,3 +72,18 @@ runs/
 # Others
 *.pkl
 
+# Model weights (e.g., ResNet, Swin Transformer)
+checkpoint/*.pth
+*.pth
+
+# Ignore all image files (recursively in all folders)
+**/*.jpg
+**/*.jpeg
+**/*.png
+**/*.gif
+**/*.bmp
+**/*.tif
+**/*.tiff
+**/*.webp
+**/*.svg
+./dataset
