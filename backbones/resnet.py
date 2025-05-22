@@ -109,6 +109,9 @@ def resnet50(num_classes=1000, include_top=True):
     # ImageNet Pretrain weight: https://download.pytorch.org/models/resnet50-19c8e357.pth
     return ResNet(BottleNeck, [3, 4, 6, 3], num_classes=num_classes, include_top=include_top)
 
+def resnet18(num_classes=1000, include_top=True):
+    return ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes, include_top=include_top)
+
 def main():
     """Test the ResNet model."""
     # Test the model
