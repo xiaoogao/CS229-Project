@@ -4,28 +4,27 @@ import torch.nn as nn
 import timm
 import json
 from torchvision import datasets, transforms
-from backbones import resnet, swin_transformer
 import os
 import sys
 import time
-from util.helper import FocalLoss
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-def preprocess_resnet50(num_classes=10, pretrain_path='./checkpoint/resnet50-19c8e357.pth'):
-    model = resnet.resnet50(num_classes=1000).cuda()
-    model.load_state_dict(torch.load(pretrain_path, weights_only=True))
-    # for param in model.parameters():
-    #     param.requires_grad = False
-    model.fc = nn.Linear(model.fc.in_features, num_classes).cuda()
-    return model
+# Add project root to sys.path for import and resource access
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+torch.autograd.set_detect_anomaly(True)
 
-def preprocess_swin_transformer(num_classes=10):
-    model = timm.create_model("swin_tiny_patch4_window7_224", pretrained=True, num_classes=1000).cuda()
-    # for param in model.parameters():
-    #     param.requires_grad = False
-    model.head.fc = nn.Linear(model.head.fc.in_features, num_classes).cuda()
+from backbones import resnet, swin_transformer
+from util.helper import FocalLoss
+
+def preprocess_resnet10(num_classes=10, pretrain_path=None):
+    model = resnet.resnet10(num_classes=1000).cuda()
+    if pretrain_path:
+        model.load_state_dict(torch.load(pretrain_path, weights_only=True))
+    model.fc = nn.Linear(model.fc.in_features, num_classes).cuda()
     return model
 
 def save_loss_acc_curves(train_losses, val_losses, train_accs, val_accs, save_prefix):
@@ -76,12 +75,12 @@ def get_experiment_dir(base_path, model, data_root):
 
 def main():
     parser = argparse.ArgumentParser(description="Train classification model on custom dataset.")
-    parser.add_argument('--model', type=str, default='resnet50', choices=['resnet50', 'swin'], help='Model to use (default: resnet50)')
-    parser.add_argument('--data_root', type=str, default='./dataset/dataset_100', help='Root directory of train/val split')
-    parser.add_argument('--save_path', type=str, default='./checkpoint', help='Root path to save experiment folders')
-    parser.add_argument('--pretrain_path', type=str, default='./checkpoint/resnet50-19c8e357.pth', help='Pretrained weights path for ResNet50')
-    parser.add_argument('--batch_size', type=int, default=64, help='Batch size for training/validation')
-    parser.add_argument('--epochs', type=int, default=100, help='Number of training epochs')
+    parser.add_argument('--model', type=str, default='resnet10', help='Model to use (default: resnet18)')
+    parser.add_argument('--data_root', type=str, default='../dataset/dataset_100', help='Root directory of train/val split')
+    parser.add_argument('--save_path', type=str, default='../checkpoint', help='Root path to save experiment folders')
+    parser.add_argument('--pretrain_path', type=str, default=None, help='Pretrained weights path for ResNet18')
+    parser.add_argument('--batch_size', type=int, default=128, help='Batch size for training/validation')
+    parser.add_argument('--epochs', type=int, default=150, help='Number of training epochs')
     parser.add_argument('--use_focal_loss', action='store_true', default=False, help='Use focal loss in addition to cross entropy')
     parser.add_argument('--num_workers', type=int, default=4, help='Number of workers for DataLoader')
     args = parser.parse_args()
@@ -99,13 +98,12 @@ def main():
             transforms.Lambda(lambda img: img.convert("RGB")),
             transforms.RandomResizedCrop(224),
             transforms.RandomHorizontalFlip(),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1), # dataaugmentation (optional, 3% imprvoments)
             transforms.RandomRotation(10),
+            transforms.ColorJitter(brightness=0.2,contrast=0.2,saturation=0.2,hue=0.1),
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ]),
         "val": transforms.Compose([
-            transforms.Lambda(lambda img: img.convert("RGB")),
             transforms.Resize(256),
             transforms.CenterCrop(224),
             transforms.ToTensor(),
@@ -133,20 +131,18 @@ def main():
 
     # ==== Model ====
     num_classes = len(category_to_label)
-    if args.model == 'resnet50':
-        model = preprocess_resnet50(num_classes=num_classes, pretrain_path=args.pretrain_path)
-    elif args.model == 'swin':
-        model = preprocess_swin_transformer(num_classes=num_classes)
+    if args.model == 'resnet10':
+        model = preprocess_resnet10(num_classes=num_classes, pretrain_path=args.pretrain_path)
     else:
         raise ValueError(f"Unknown model {args.model}")
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     model.to(device)
 
     # ==== Loss and optimizer ====
-    loss_function = nn.CrossEntropyLoss(label_smoothing=0.0)
+    loss_function = nn.CrossEntropyLoss(label_smoothing=0.15)
     if args.use_focal_loss:
         focal_loss = FocalLoss(gamma=2, alpha=None)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
 
     # ==== Training loop ====
     best_acc = 0.0

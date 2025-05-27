@@ -1,6 +1,35 @@
 import torch
 import torch.nn as nn
 
+class BasicBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, in_channels, out_channels, stride=1, downsample=None):
+        super(BasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, stride=stride, bias=False)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=False)
+        self.downsample = downsample
+    
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        if self.downsample:
+            identity = self.downsample(x)
+        out = out + identity
+        out = self.relu(out)
+        return out
+
 class BottleNeck(nn.Module):
     expansion = 4
 
@@ -12,7 +41,7 @@ class BottleNeck(nn.Module):
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.conv3 = nn.Conv2d(out_channels, out_channels * self.expansion, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(out_channels * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=False)
         self.downsample = downsample
 
     def forward(self, x):
@@ -32,7 +61,7 @@ class BottleNeck(nn.Module):
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out += identity
+        out = out + identity
         out = self.relu(out)
 
         return out
@@ -44,7 +73,7 @@ class ResNet(nn.Module):
         self.include_top = include_top
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=False)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
         self.layer1 = self._make_layer(block, 64, block_num[0])
@@ -112,13 +141,24 @@ def resnet50(num_classes=1000, include_top=True):
 def resnet18(num_classes=1000, include_top=True):
     return ResNet(BasicBlock, [2, 2, 2, 2], num_classes=num_classes, include_top=include_top)
 
+def resnet10(num_classes=1000, include_top=True):
+    return ResNet(BasicBlock, [1, 1, 1, 1], num_classes=num_classes, include_top=include_top)
+
 def main():
     """Test the ResNet model."""
-    # Test the model
+    # Test the model resnet18
+    model = resnet18(num_classes=1000, include_top=True).cuda()
+    x = torch.randn(1, 3, 224, 224).cuda()
+    y = model(x)
+    print(y.shape)  # Expected output: torch.Size([1, 1000])
+    print("ResNet18 construction success!")
+
+    # Test the model resnet50
     model = resnet50(num_classes=1000, include_top=True).cuda()
     x = torch.randn(1, 3, 224, 224).cuda()
     y = model(x)
     print(y.shape)  # Expected output: torch.Size([1, 1000])
+    print("ResNet50 construction success!")
 
 if __name__ == "__main__":
     main()

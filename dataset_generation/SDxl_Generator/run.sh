@@ -10,4 +10,10 @@ do
   CUDA_VISIBLE_DEVICES=$i nohup python generate_images.py $i > logs/batch_$i.log 2>&1 &
 done
 
+# Wait for all background jobs to finish
+wait
+
+# Move data after all jobs are done
+mv SDxl_data ..
+
 echo "All nohup jobs started. Check logs/ for output."

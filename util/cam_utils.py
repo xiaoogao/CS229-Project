@@ -1,6 +1,14 @@
 import cv2
 import numpy as np
 
+# Reference:
+# This file adapts parts of the code from torch-cam project:
+# https://github.com/frgfm/torch-cam/blob/main/torchcam/methods/core.py
+# If you use this code, please also consider citing the original repository.
+
+# Copyright (c) frgfm/torch-cam contributors.
+# Licensed under the Apache License, Version 2.0.
+
 
 class ActivationsAndGradients:
     """ Class for extracting activations and

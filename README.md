@@ -13,19 +13,18 @@ Our approach uses both Grad-CAM and Grad-CAM++ to visualize and ablate gender-ac
 
 ```
 .
-├── backbones/            # Backbone model definitions (ResNet, Swin-Transformer)
-├── checkpoint/           # Saved model checkpoints
-├── class_label.json      # Class-to-label mapping for consistent evaluation
-├── dataset/              # Image dataset (with train/val splits)
-├── dataset_generation/   # Scripts for filtering/constructing custom datasets
-├── eval.py               # Evaluation and Grad-CAM visualization
-├── log/                  # Training logs
-├── README.md             # Project documentation (this file)
-├── run.sh                # Shell script for quick training/evaluation launch
-├── train.py              # Main training script (multi-backbone, multi-head)
-└── util/                 # Utilities (GradCAM, loss functions, etc.)
+├── auxiliary_experiments/    # Extra scripts and analyses (face ratio, bias metrics, etc.)
+├── backbones/                 # Backbone model definitions (e.g., ResNet, Swin-Transformer)
+├── checkpoint/                # Saved model checkpoints
+├── class_label.json           # Class mapping for evaluation
+├── dataset/                   # Main image dataset (train/val/test splits)
+├── dataset_generation/        # Scripts for dataset crawling and construction
+├── eval.py                    # Model evaluation and Grad-CAM visualization script
+├── README.md                  # Project documentation (this file)
+├── run.sh                     # Quick launch script for training/evaluation
+├── train.py                   # Main training script (supports multiple backbones)
+└── util/                      # Utility functions (GradCAM, data helpers, etc.)
 ```
-
 
 ## Usage
 
@@ -39,6 +38,14 @@ pip install torch torchvision timm numpy tqdm pillow opencv-python
 ### 2. Dataset Preparation
 
 Our dataset is a hybrid of real-world crawled images and high-quality synthetic data generated via SDXL. Follow these steps to reproduce the dataset:
+
+**Recommended:**  
+To get started quickly, simply run:
+
+```bash
+chmod +x ./util/download_dataset.sh 
+./util/download_dataset.sh
+```
 
 #### **Step 1: Web Image Crawling**
 
@@ -81,15 +88,16 @@ Navigate to the `./dataset_generation/` directory.
 Run the script to merge data and create splits:
 
 ```bash
-python make_dataset.py
+chmod +x make_dataset.sh
+python make_dataset.sh
 ```
 
 This script merges crawled and synthetic data (paths are configurable within the script).
-The merged dataset will be placed in `./dataset/`.
+The merged dataset will be placed in `../dataset/`.
 
 **Gender Proportion Splits:**
 
-The dataset will be automatically split into five groups with different female ratios: 0%, 25%, 50%, 75%, 100%. Each group can be used for downstream bias and fairness experiments.
+The dataset will be automatically split into five groups with different female ratios: 0%, 50%, 100%. Each group can be used for downstream bias and fairness experiments.
 
 **Directory Structure**
 
@@ -98,9 +106,7 @@ After completion, your `./dataset/` directory will look like:
 ```
 dataset/
 ├── dataset_0/
-├── dataset_25/
 ├── dataset_50/
-├── dataset_75/
 └── dataset_100/
     ├── train/
     └── val/
@@ -119,18 +125,20 @@ Before training, make sure to download the necessary pretrained weights:
 - To download backbone weights (for training from scratch or finetuning):
 
     ```bash
+    chmod +x ./util/download_pretrain_weight.sh
     ./util/download_pretrain_weight.sh
     ```
 
-- To download the baseline model checkpoint for evaluation or comparison:
+- (Recommended) To download the fully-trained model checkpoint for evaluation or comparison:
 
     ```bash
-    ./util/download_baseline.sh
+    chmod +x ./util/download_baseline.sh 
+    ./util/download_baseline.sh 
     ```
 
 Both scripts will automatically place the weights into the `./checkpoint/` directory.
 
-**Training From Scracth**
+**Training From Scratch**
 To train a model (e.g., ResNet50 with dual-head for gender and profession), run:
 ```
 python train.py \
@@ -160,15 +168,51 @@ Results will include the original image and Grad-CAM/Grad-CAM++ heatmaps.
 
 ### 5. Masking-based Ablation
 
+To apply dlib-based mask generation to your dataset, use the provided script:
+
+1. **Navigate** to the `dataset_generation/Mask_add_Generator` directory:
+```bash
+    cd dataset_generation/Mask_add_Generator
+```
+
+2. **Run the script** with your input folder. For example:
+```bash
+    python add_mask_dlib.py --input_root ../../dataset/dataset_0
+```
+    This will generate a face-masked dataset in `../../dataset/dataset_0_mask`.
+
+3. **Modify** the training dataset path in your configuration or script to point to the newly generated masked dataset, then run `train.py` as usual.
+
+> **Tip:**  
+> You can specify a custom output directory using the `--output_root` argument if desired.  
+> Example:
+> ```bash
+> python add_mask_dlib.py --input_root ../../dataset/dataset_0 --output_root ../../dataset/dataset_0_masked
+> ```
+
+Make sure your input and output paths are correct and have the necessary read/write permissions.
+
 ### 6. Running All Experiments
+Training metrics will be automatically recorded in the checkpoint files.
+There are two auxiliary experiments available in `./auxiliary_experiments`:
 
-## Key Features
+**1: Confusion Matrix**
+```bash
+chmod +x plot_cf.sh
+./plot_cf.sh
+```
+The shell script will automatically plot all confusion matrices using the pretrained weights located in `./checkpoint`.
 
-- **Dual-head classifier:** Joint gender/profession prediction.
-- **Backbone comparison:** Switch between ResNet50 (CNN) and Swin-Transformer (Transformer).
-- **Explainable AI:** Integrated Grad-CAM and Grad-CAM++.
-- **Bias quantification:** Masking-based ablation to measure gender influence.
-- **OpenImages compatible:** Dataset filtering and mapping scripts provided.
+**2:Face Ratio**
+```bash
+python script.py \
+    --data_root ../dataset/dataset_100/val \
+    --model_path ../checkpoint/swin_dataset_100_Mask_20250524_141628/best_model.pth \
+    --model_name swin \
+    --num_classes 10 \
+    --threshold 0.2
+```
+This script computes the Face Ratio, which quantifies what percentage of the GradCAM attribution falls within the detected face region of each image.
 
 ## References
 

@@ -87,4 +87,5 @@ checkpoint/*.pth
 **/*.webp
 **/*.svg
 **/*.txt
+**/*.csv
 ./dataset

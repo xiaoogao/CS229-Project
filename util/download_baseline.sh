@@ -1,24 +1,30 @@
 #!/bin/bash
 
-TARGET_DIR="./checkpoint"
-FILE_ID="1mEYF1_om6AHx39KPv4H5X-smHhBVM-qn"
-FILE_NAME="resnet50_dataset_100.pth"
+# Google Drive ID
+FILE_ID="1QzojD9X0V2ghBcianO_UKOqbreq9iU94"
+ARCHIVE_NAME="checkpoint.tar.gz"
 
-# Check gdown is installed
+# check gdown command
 if ! command -v gdown &> /dev/null
 then
     echo "gdown not found, installing..."
     pip install gdown
 fi
 
-mkdir -p "$TARGET_DIR"
+# download the checkpoint archive
+echo "Downloading checkpoint archive from Google Drive..."
+gdown "https://drive.google.com/uc?id=${FILE_ID}" -O "${ARCHIVE_NAME}"
 
-echo "Downloading model checkpoint..."
-gdown "$FILE_ID" -O "$TARGET_DIR/$FILE_NAME"
-
-if [ -f "$TARGET_DIR/$FILE_NAME" ]; then
-    echo "All models downloaded and moved to $TARGET_DIR."
-else
+# check if the download was successful
+if [ ! -f "${ARCHIVE_NAME}" ]; then
     echo "Download failed! Please check your network or file permissions."
     exit 1
 fi
+
+# extraction
+echo "Extracting checkpoint archive..."
+tar -xzf "${ARCHIVE_NAME}"
+
+rm -f "${ARCHIVE_NAME}"
+
+echo "All done. 'checkpoint/' directory is ready."

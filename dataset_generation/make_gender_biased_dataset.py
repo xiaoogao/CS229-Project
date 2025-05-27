@@ -110,7 +110,7 @@ def split_and_sample_gender(
             out_dir = os.path.join(output_root, split, subfolder)
             ensure_dir(out_dir)
             for idx, (src_path, gender, orig_fname) in enumerate(file_list, 1):
-                dst_fname = f"{idx:08d}.png"
+                dst_fname = f"{('0' if gender == 'male' else '1')}_{idx:08d}.png"
                 dst_path = os.path.join(out_dir, dst_fname)
                 shutil.copyfile(src_path, dst_path)
                 meta.append({
@@ -131,9 +131,9 @@ def main():
     parser.add_argument("--folder_A", type=str, required=True, help="Path to first source dataset (e.g. Crawler_Dataset)")
     parser.add_argument("--folder_B", type=str, required=True, help="Path to second source dataset (e.g. SDxl_data)")
     parser.add_argument("--output_root", type=str, required=True, help="Output directory for the new merged dataset")
-    parser.add_argument("--train_ratio", type=float, default=0.8, help="Ratio of data used for training (default: 0.8)")
+    parser.add_argument("--train_ratio", type=float, default=0.85, help="Ratio of data used for training (default: 0.8)")
     parser.add_argument("--female_train_ratio", type=float, default=1.0, help="Proportion of female images to keep in train split (default: 1.0)")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
+    parser.add_argument("--seed", type=int, default=1234, help="Random seed (default: 1234)")
     args = parser.parse_args()
 
     split_and_sample_gender(
