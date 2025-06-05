@@ -16,6 +16,7 @@ from tqdm import tqdm
 import seaborn as sns
 import matplotlib.pyplot as plt
 import face_recognition
+import dlib
 import timm
 from torchvision import transforms
 from backbones import resnet
@@ -128,6 +129,8 @@ if __name__ == "__main__":
             use_cuda=(device.type == "cuda")
         )
 
+    detector = dlib.get_frontal_face_detector()
+
     # ---- Main Loop ----
     records = []
     for profession in os.listdir(args.data_root):
@@ -141,9 +144,14 @@ if __name__ == "__main__":
             # 1. Face Detection
             img_pil = Image.open(img_path).convert("RGB")
             img_np = np.array(img_pil)
-            face_locations = face_recognition.face_locations(img_np)
-            if len(face_locations) == 0:
+            # dlib expects RGB or grayscale images, H x W x 3 ndarray
+            faces = detector(img_np, 1)
+            if len(faces) == 0:
                 continue  # No face detected, skip
+            face_locations = []
+            for face in faces:
+                left, top, right, bottom = face.left(), face.top(), face.right(), face.bottom()
+                face_locations.append((top, right, bottom, left))
 
             # 2. GradCAM
             input_tensor = transform(img_pil).unsqueeze(0).to(device)
@@ -161,7 +169,7 @@ if __name__ == "__main__":
                 face_box = act_mask[top:bottom, left:right]
                 face_act += face_box.sum()
             face_ratio = face_act / total_act if total_act > 0 else 0
-
+            
             # 4. Record results
             gender = get_gender_label(img_path)
             records.append({
